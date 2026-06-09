@@ -1,0 +1,50 @@
+# ── Dependencies ──────────────────────────────────────────────────────────────
+node_modules/
+
+# ── Environment / secrets ─────────────────────────────────────────────────────
+# .env.example files are committed; actual .env files are not
+.env
+.env.local
+.env.*.local
+
+# ── Build output ──────────────────────────────────────────────────────────────
+dist/
+dist-ssr/
+build/
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ── TypeScript ────────────────────────────────────────────────────────────────
+*.tsbuildinfo
+
+# ── Test / coverage ───────────────────────────────────────────────────────────
+coverage/
+.nyc_output/
+
+# ── OS-generated files ────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# ── Editor ────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ── Vite ──────────────────────────────────────────────────────────────────────
+.vite/
