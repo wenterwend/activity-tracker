@@ -9,7 +9,7 @@ export function LoginPage() {
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => { document.title = 'TaskJournal — Sign In' }, [])
+  useEffect(() => { document.title = 'TaskJournal — Sign In ' }, [])
 
   async function handleSubmit(e) {
     e.preventDefault()
