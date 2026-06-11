@@ -17,14 +17,24 @@ function defaultEnd() {
   return new Date().toISOString().slice(0, 10)
 }
 
+function getIncludeExclude(tagStates) {
+  const include = []
+  const exclude = []
+  for (const [id, state] of Object.entries(tagStates)) {
+    if (state === 'include') include.push(id)
+    else if (state === 'exclude') exclude.push(id)
+  }
+  return { include, exclude }
+}
+
 export function ReportsPage() {
   const { tags } = useTags()
   const [filters, setFilters] = useState({
     start: defaultStart(),
     end: defaultEnd(),
-    tagIds: [],
+    tagStates: {},
   })
-  const [entries, setEntries] = useState(null) // null = report not yet run
+  const [entries, setEntries] = useState(null)
   const [loading, setLoading] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -35,8 +45,10 @@ export function ReportsPage() {
     setLoading(true)
     setError(null)
     try {
+      const { include, exclude } = getIncludeExclude(filters.tagStates)
       const params = new URLSearchParams({ start: filters.start, end: filters.end })
-      if (filters.tagIds.length > 0) params.set('tag_ids', filters.tagIds.join(','))
+      if (include.length > 0) params.set('tag_ids', include.join(','))
+      if (exclude.length > 0) params.set('exclude_tag_ids', exclude.join(','))
       const data = await apiFetch('/reports?' + params.toString())
       setEntries(data)
     } catch (e) {
@@ -47,7 +59,7 @@ export function ReportsPage() {
   }
 
   function clearFilters() {
-    setFilters({ start: defaultStart(), end: defaultEnd(), tagIds: [] })
+    setFilters({ start: defaultStart(), end: defaultEnd(), tagStates: {} })
     setEntries(null)
     setError(null)
   }

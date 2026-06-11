@@ -9,15 +9,20 @@ import { SkeletonCard } from '../components/SkeletonCard'
 export function DashboardPage() {
   const { entries, loading, error, refetch } = useEntries()
   const { tags } = useTags()
-  const [filterTagIds, setFilterTagIds] = useState([])
+  const [tagStates, setTagStates] = useState({})
 
   useEffect(() => { document.title = 'TaskJournal — Dashboard' }, [])
 
-  const visibleEntries = filterTagIds.length === 0
-    ? entries
-    : entries.filter(entry =>
-        filterTagIds.every(tid => entry.tags?.some(t => t.id === tid))
-      )
+  const includeTags = Object.entries(tagStates).filter(([, s]) => s === 'include').map(([id]) => id)
+  const excludeTags = Object.entries(tagStates).filter(([, s]) => s === 'exclude').map(([id]) => id)
+
+  const visibleEntries = entries.filter(entry => {
+    if (includeTags.length > 0 && !includeTags.every(tid => entry.tags?.some(t => t.id === tid))) return false
+    if (excludeTags.some(tid => entry.tags?.some(t => t.id === tid))) return false
+    return true
+  })
+
+  const isFiltered = Object.keys(tagStates).length > 0
 
   return (
     <div className="flex flex-col gap-6">
@@ -32,7 +37,7 @@ export function DashboardPage() {
       </div>
 
       {tags.length > 0 && (
-        <TagFilterBar tags={tags} selected={filterTagIds} onChange={setFilterTagIds} />
+        <TagFilterBar tags={tags} states={tagStates} onChange={setTagStates} />
       )}
 
       {error && (
@@ -61,7 +66,7 @@ export function DashboardPage() {
 
       {!loading && entries.length > 0 && visibleEntries.length === 0 && (
         <p className="text-gray-400 text-sm text-center py-8">
-          No entries match the selected tags.
+          No entries match the selected filters.
         </p>
       )}
 

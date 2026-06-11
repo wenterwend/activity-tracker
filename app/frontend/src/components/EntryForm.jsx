@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { TagSelector } from './TagSelector'
+import { CreateTagModal } from './CreateTagModal'
 
 function today() {
   return new Date().toISOString().slice(0, 10)
@@ -29,6 +30,20 @@ export function EntryForm({ initialValues, tags = [], onSubmit, submitLabel = 'S
   const [tagIds, setTagIds] = useState(initialValues?.tag_ids ?? [])
   const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [localTags, setLocalTags] = useState([])
+
+  // Tags shown in selector = fetched tags + any created inline this session
+  const allTags = [
+    ...tags,
+    ...localTags.filter(lt => !tags.find(t => t.id === lt.id)),
+  ]
+
+  function handleTagCreated(tag) {
+    setLocalTags(prev => [...prev, tag])
+    setTagIds(prev => [...prev, tag.id])
+    setModalOpen(false)
+  }
 
   function switchUnit(unit) {
     if (unit === timeUnit) return
@@ -79,111 +94,129 @@ export function EntryForm({ initialValues, tags = [], onSubmit, submitLabel = 'S
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-      {/* Task name */}
-      <div>
-        <label htmlFor="task_name" className="block text-sm font-medium text-gray-700 mb-1">
-          Task name <span className="text-red-500">*</span>
-        </label>
-        <input
-          id="task_name"
-          type="text"
-          value={taskName}
-          onChange={e => setTaskName(e.target.value)}
-          placeholder="What did you work on?"
-          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-        />
-        {errors.taskName && <p className="text-red-600 text-xs mt-1">{errors.taskName}</p>}
-      </div>
-
-      {/* Date */}
-      <div>
-        <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
-          Date <span className="text-red-500">*</span>
-        </label>
-        <input
-          id="date"
-          type="date"
-          value={date}
-          onChange={e => setDate(e.target.value)}
-          className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-        />
-      </div>
-
-      {/* Time spent */}
-      <div>
-        <label htmlFor="time_input" className="block text-sm font-medium text-gray-700 mb-1">
-          Time spent <span className="text-red-500">*</span>
-        </label>
-        <div className="flex items-center gap-2">
+    <>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        {/* Task name */}
+        <div>
+          <label htmlFor="task_name" className="block text-sm font-medium text-gray-700 mb-1">
+            Task name <span className="text-red-500">*</span>
+          </label>
           <input
-            id="time_input"
-            type="number"
-            min="0"
-            step={timeUnit === 'hours' ? '0.25' : '1'}
-            value={timeInput}
-            onChange={e => setTimeInput(e.target.value)}
-            placeholder={timeUnit === 'hours' ? '1.5' : '90'}
-            className="w-28 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            id="task_name"
+            type="text"
+            value={taskName}
+            onChange={e => setTaskName(e.target.value)}
+            placeholder="What did you work on?"
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           />
-          <div className="flex rounded-md border border-gray-300 overflow-hidden text-sm">
+          {errors.taskName && <p className="text-red-600 text-xs mt-1">{errors.taskName}</p>}
+        </div>
+
+        {/* Date */}
+        <div>
+          <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
+            Date <span className="text-red-500">*</span>
+          </label>
+          <input
+            id="date"
+            type="date"
+            value={date}
+            onChange={e => setDate(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          />
+        </div>
+
+        {/* Time spent */}
+        <div>
+          <label htmlFor="time_input" className="block text-sm font-medium text-gray-700 mb-1">
+            Time spent <span className="text-red-500">*</span>
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              id="time_input"
+              type="number"
+              min="0"
+              step={timeUnit === 'hours' ? '0.25' : '1'}
+              value={timeInput}
+              onChange={e => setTimeInput(e.target.value)}
+              placeholder={timeUnit === 'hours' ? '1.5' : '90'}
+              className="w-28 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+            <div className="flex rounded-md border border-gray-300 overflow-hidden text-sm">
+              <button
+                type="button"
+                onClick={() => switchUnit('hours')}
+                className={`px-3 py-2 transition-colors ${
+                  timeUnit === 'hours'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                hrs
+              </button>
+              <button
+                type="button"
+                onClick={() => switchUnit('minutes')}
+                className={`px-3 py-2 border-l border-gray-300 transition-colors ${
+                  timeUnit === 'minutes'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                min
+              </button>
+            </div>
+          </div>
+          {errors.time && <p className="text-red-600 text-xs mt-1">{errors.time}</p>}
+        </div>
+
+        {/* Notes */}
+        <div>
+          <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
+            Notes <span className="text-gray-400 font-normal">(optional)</span>
+          </label>
+          <textarea
+            id="notes"
+            rows={4}
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            placeholder="Any details about this work…"
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-y"
+          />
+        </div>
+
+        {/* Tags */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm font-medium text-gray-700">
+              Tags <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
             <button
               type="button"
-              onClick={() => switchUnit('hours')}
-              className={`px-3 py-2 transition-colors ${
-                timeUnit === 'hours'
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
-              }`}
+              onClick={() => setModalOpen(true)}
+              className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
             >
-              hrs
-            </button>
-            <button
-              type="button"
-              onClick={() => switchUnit('minutes')}
-              className={`px-3 py-2 border-l border-gray-300 transition-colors ${
-                timeUnit === 'minutes'
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              min
+              + New Tag
             </button>
           </div>
+          <TagSelector tags={allTags} selected={tagIds} onChange={setTagIds} />
         </div>
-        {errors.time && <p className="text-red-600 text-xs mt-1">{errors.time}</p>}
-      </div>
 
-      {/* Notes */}
-      <div>
-        <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
-          Notes <span className="text-gray-400 font-normal">(optional)</span>
-        </label>
-        <textarea
-          id="notes"
-          rows={4}
-          value={notes}
-          onChange={e => setNotes(e.target.value)}
-          placeholder="Any details about this work…"
-          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-y"
+        <button
+          type="submit"
+          disabled={submitting}
+          className="self-start bg-indigo-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+        >
+          {submitting ? 'Saving…' : submitLabel}
+        </button>
+      </form>
+
+      {modalOpen && (
+        <CreateTagModal
+          onCreated={handleTagCreated}
+          onClose={() => setModalOpen(false)}
         />
-      </div>
-
-      {/* Tags */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Tags <span className="text-gray-400 font-normal">(optional)</span>
-        </label>
-        <TagSelector tags={tags} selected={tagIds} onChange={setTagIds} />
-      </div>
-
-      <button
-        type="submit"
-        disabled={submitting}
-        className="self-start bg-indigo-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-      >
-        {submitting ? 'Saving…' : submitLabel}
-      </button>
-    </form>
+      )}
+    </>
   )
 }

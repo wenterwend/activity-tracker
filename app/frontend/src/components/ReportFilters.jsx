@@ -51,11 +51,11 @@ export function ReportFilters({ filters, onChange, onRun, onClear, tags, loading
 
       {tags.length > 0 && (
         <div>
-          <p className="text-sm font-medium text-gray-700 mb-2">Filter by Tags (AND)</p>
+          <p className="text-sm font-medium text-gray-700 mb-2">Filter by Tags</p>
           <TagFilterBar
             tags={tags}
-            selected={filters.tagIds}
-            onChange={ids => onChange({ ...filters, tagIds: ids })}
+            states={filters.tagStates}
+            onChange={tagStates => onChange({ ...filters, tagStates })}
           />
         </div>
       )}

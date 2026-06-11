@@ -5,15 +5,16 @@ const router = Router()
 
 router.use(requireAuth)
 
-// GET /reports?start=YYYY-MM-DD&end=YYYY-MM-DD[&tag_ids=id1,id2]
+// GET /reports?start=YYYY-MM-DD&end=YYYY-MM-DD[&tag_ids=id1,id2][&exclude_tag_ids=id3,id4]
 router.get('/', async (req, res) => {
-  const { start, end, tag_ids } = req.query
+  const { start, end, tag_ids, exclude_tag_ids } = req.query
 
   if (!start || !end) {
     return res.status(400).json({ error: 'start and end query params are required' })
   }
 
-  const tagFilter = tag_ids ? tag_ids.split(',').filter(Boolean) : []
+  const includeFilter = tag_ids ? tag_ids.split(',').filter(Boolean) : []
+  const excludeFilter = exclude_tag_ids ? exclude_tag_ids.split(',').filter(Boolean) : []
 
   const { data, error } = await req.supabase
     .from('entries')
@@ -34,10 +35,17 @@ router.get('/', async (req, res) => {
     tags: entry_tags.map(et => et.tags),
   }))
 
-  // AND filter: entry must have ALL requested tags
-  if (tagFilter.length > 0) {
+  // AND include filter: entry must have ALL requested tags
+  if (includeFilter.length > 0) {
     results = results.filter(entry =>
-      tagFilter.every(tid => entry.tags.some(t => t.id === tid))
+      includeFilter.every(tid => entry.tags.some(t => t.id === tid))
+    )
+  }
+
+  // NOT exclude filter: entry must not have ANY of the excluded tags
+  if (excludeFilter.length > 0) {
+    results = results.filter(entry =>
+      !excludeFilter.some(tid => entry.tags.some(t => t.id === tid))
     )
   }
 
