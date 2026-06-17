@@ -66,6 +66,9 @@ GRANT ALL ON audit_log TO service_role;
 REVOKE ALL ON audit_log FROM anon;
 REVOKE ALL ON audit_log FROM authenticated;
 
+-- Ensure service_role has access to all tables (safe to run multiple times)
+GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
+
 -- ── ai_summaries: add token columns ──────────────────────────────────────────
 ALTER TABLE ai_summaries ADD COLUMN IF NOT EXISTS input_tokens  INTEGER;
 ALTER TABLE ai_summaries ADD COLUMN IF NOT EXISTS output_tokens INTEGER;
