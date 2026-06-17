@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { apiFetch } from '../lib/api'
 import { TagBadge } from './TagBadge'
 
@@ -20,6 +20,8 @@ function formatDate(dateStr) {
 }
 
 export function EntryCard({ entry, onDeleted }) {
+  const navigate = useNavigate()
+
   async function handleDelete() {
     if (!window.confirm('Delete this entry?')) return
     try {
@@ -27,6 +29,15 @@ export function EntryCard({ entry, onDeleted }) {
       onDeleted(entry.id)
     } catch (e) {
       alert('Failed to delete: ' + e.message)
+    }
+  }
+
+  async function handleDuplicate() {
+    try {
+      const { id } = await apiFetch('/entries/' + entry.id + '/duplicate', { method: 'POST' })
+      navigate(`/entries/${id}/edit`)
+    } catch (e) {
+      alert('Failed to duplicate: ' + e.message)
     }
   }
 
@@ -41,6 +52,13 @@ export function EntryCard({ entry, onDeleted }) {
           >
             Edit
           </Link>
+          <button
+            onClick={handleDuplicate}
+            className="text-gray-400 hover:text-indigo-600 transition-colors"
+            title="Duplicate entry"
+          >
+            Copy
+          </button>
           <button
             onClick={handleDelete}
             className="text-gray-400 hover:text-red-600 transition-colors"

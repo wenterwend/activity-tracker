@@ -143,4 +143,47 @@ router.delete('/:id', async (req, res) => {
   res.status(204).end()
 })
 
+// POST /entries/:id/duplicate — copies task_name, time, and tags; sets date to today
+router.post('/:id/duplicate', async (req, res) => {
+  const { data: original, error: fetchError } = await req.supabase
+    .from('entries')
+    .select(ENTRY_SELECT)
+    .eq('id', req.params.id)
+    .eq('user_id', req.user.id)
+    .maybeSingle()
+
+  if (fetchError) return res.status(500).json({ error: fetchError.message })
+  if (!original) return res.status(404).json({ error: 'Not found' })
+
+  const today = new Date().toISOString().split('T')[0]
+
+  const { data: copy, error: insertError } = await req.supabase
+    .from('entries')
+    .insert({
+      user_id: req.user.id,
+      task_name: original.task_name,
+      date: today,
+      time_spent_minutes: original.time_spent_minutes,
+      notes: original.notes,
+    })
+    .select()
+    .single()
+
+  if (insertError) return res.status(500).json({ error: insertError.message })
+
+  const personalTagIds = (original.entry_tags ?? []).map(et => et.tag_id)
+  const sharedTagIds   = (original.entry_shared_tags ?? []).map(est => est.shared_tag_id)
+
+  if (personalTagIds.length > 0) {
+    await req.supabase.from('entry_tags')
+      .insert(personalTagIds.map(tag_id => ({ entry_id: copy.id, tag_id })))
+  }
+  if (sharedTagIds.length > 0) {
+    await req.supabase.from('entry_shared_tags')
+      .insert(sharedTagIds.map(shared_tag_id => ({ entry_id: copy.id, shared_tag_id })))
+  }
+
+  res.status(201).json({ id: copy.id })
+})
+
 export { router as entriesRouter }

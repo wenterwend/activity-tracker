@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { buildPrompt, hashPrompt, summarizeEntries } from '../lib/claude.js'
+import { serviceClient } from '../lib/serviceClient.js'
 
 const router = Router()
 
@@ -34,31 +35,37 @@ router.post('/summary', async (req, res) => {
     .maybeSingle()
 
   if (cached) {
-    console.log(`[AI] Cache hit for prompt_hash: ${prompt_hash.slice(0, 12)}…`)
     return res.json({ summary: cached.summary_text, cached: true })
   }
 
-  console.log(`[AI] Cache miss — calling Claude for prompt_hash: ${prompt_hash.slice(0, 12)}…`)
-
-  let summary_text
+  let result
   try {
-    summary_text = await summarizeEntries(entries)
+    result = await summarizeEntries(entries)
   } catch (err) {
     console.error('[AI] Claude error:', err.message)
     return res.status(502).json({ error: 'AI generation failed. Please try again.' })
   }
 
+  const { text: summary_text, input_tokens, output_tokens } = result
+
   // Upsert into cache — non-fatal if it fails
   const { error: insertError } = await req.supabase
     .from('ai_summaries')
     .upsert(
-      { user_id: req.user.id, period_start, period_end, prompt_hash, summary_text },
+      { user_id: req.user.id, period_start, period_end, prompt_hash, summary_text, input_tokens, output_tokens },
       { onConflict: 'user_id,prompt_hash' }
     )
 
   if (insertError) {
     console.error('[AI] Cache write failed:', insertError.message)
   }
+
+  // Audit log — fire-and-forget
+  serviceClient.from('audit_log').insert({
+    user_id: req.user.id,
+    action: 'ai_summary_generated',
+    metadata: { input_tokens, output_tokens, period_start, period_end },
+  })
 
   res.json({ summary: summary_text, cached: false })
 })

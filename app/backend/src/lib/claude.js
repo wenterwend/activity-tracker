@@ -36,5 +36,9 @@ Format as plain text — no markdown headers, no bullet points.`,
     ],
   })
 
-  return message.content[0].text
+  return {
+    text: message.content[0].text,
+    input_tokens: message.usage.input_tokens,
+    output_tokens: message.usage.output_tokens,
+  }
 }
