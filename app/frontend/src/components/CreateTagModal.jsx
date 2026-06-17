@@ -3,6 +3,7 @@ import { apiFetch } from '../lib/api'
 
 export function CreateTagModal({ onCreated, onClose }) {
   const [name, setName] = useState('')
+  const [tagType, setTagType] = useState('personal')
   const [error, setError] = useState(null)
   const [saving, setSaving] = useState(false)
 
@@ -12,8 +13,9 @@ export function CreateTagModal({ onCreated, onClose }) {
     setSaving(true)
     setError(null)
     try {
-      const tag = await apiFetch('/tags', { method: 'POST', body: { name: name.trim() } })
-      onCreated(tag)
+      const endpoint = tagType === 'shared' ? '/tags/shared' : '/tags'
+      const tag = await apiFetch(endpoint, { method: 'POST', body: { name: name.trim() } })
+      onCreated({ ...tag, type: tagType })
     } catch (err) {
       setError(
         err.message.includes('409') || err.message.includes('already')
@@ -47,6 +49,33 @@ export function CreateTagModal({ onCreated, onClose }) {
           </button>
         </div>
 
+        {/* Personal / Shared toggle */}
+        <div className="flex rounded-md border border-gray-300 overflow-hidden text-sm">
+          <button
+            type="button"
+            onClick={() => setTagType('personal')}
+            className={`flex-1 px-3 py-2 transition-colors ${
+              tagType === 'personal' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            Personal
+          </button>
+          <button
+            type="button"
+            onClick={() => setTagType('shared')}
+            className={`flex-1 px-3 py-2 border-l border-gray-300 transition-colors ${
+              tagType === 'shared' ? 'bg-emerald-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            Shared
+          </button>
+        </div>
+        {tagType === 'shared' && (
+          <p className="text-xs text-emerald-700 bg-emerald-50 rounded-md px-3 py-2">
+            Shared tags are visible to all users.
+          </p>
+        )}
+
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <div>
             <label htmlFor="modal-tag-name" className="block text-sm font-medium text-gray-700 mb-1">
@@ -58,7 +87,7 @@ export function CreateTagModal({ onCreated, onClose }) {
               autoFocus
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="e.g. Design, Backend, Meetings…"
+              placeholder="e.g. Design, Backend…"
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>
@@ -76,7 +105,11 @@ export function CreateTagModal({ onCreated, onClose }) {
             <button
               type="submit"
               disabled={saving || !name.trim()}
-              className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              className={`px-4 py-2 text-sm text-white rounded-md disabled:opacity-50 transition-colors ${
+                tagType === 'shared'
+                  ? 'bg-emerald-600 hover:bg-emerald-700'
+                  : 'bg-indigo-600 hover:bg-indigo-700'
+              }`}
             >
               {saving ? 'Creating…' : 'Create Tag'}
             </button>

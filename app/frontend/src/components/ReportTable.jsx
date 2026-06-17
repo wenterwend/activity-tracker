@@ -51,7 +51,7 @@ export function ReportTable({ entries, loading = false }) {
                   <td className="px-3 py-2">
                     {entry.tags.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
-                        {entry.tags.map(t => <TagBadge key={t.id} name={t.name} />)}
+                        {entry.tags.map(t => <TagBadge key={t.id} name={t.name} type={t.type} />)}
                       </div>
                     ) : (
                       <span className="text-gray-300">—</span>

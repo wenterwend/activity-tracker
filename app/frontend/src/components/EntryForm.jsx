@@ -81,12 +81,15 @@ export function EntryForm({ initialValues, tags = [], onSubmit, submitLabel = 'S
     setErrors({})
     setSubmitting(true)
     try {
+      const personalTagIds = tagIds.filter(id => allTags.find(t => t.id === id)?.type !== 'shared')
+      const sharedTagIds = tagIds.filter(id => allTags.find(t => t.id === id)?.type === 'shared')
       await onSubmit({
         task_name: taskName.trim(),
         date,
         time_spent_minutes: minutes,
         notes: notes.trim() || null,
-        tag_ids: tagIds,
+        tag_ids: personalTagIds,
+        shared_tag_ids: sharedTagIds,
       })
     } finally {
       setSubmitting(false)

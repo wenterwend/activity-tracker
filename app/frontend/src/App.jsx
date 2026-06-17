@@ -6,6 +6,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { EntryFormPage } from './pages/EntryFormPage'
 import { TagsPage } from './pages/TagsPage'
 import { ReportsPage } from './pages/ReportsPage'
+import { SettingsPage } from './pages/SettingsPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { Layout } from './components/Layout'
 import { ToastProvider } from './components/ToastContext'
@@ -28,6 +29,7 @@ const router = createBrowserRouter([
   { path: '/entries/:id/edit', element: <Protected><EntryFormPage /></Protected> },
   { path: '/tags', element: <Protected><TagsPage /></Protected> },
   { path: '/reports', element: <Protected><ReportsPage /></Protected> },
+  { path: '/settings', element: <Protected><SettingsPage /></Protected> },
 ])
 
 export default function App() {

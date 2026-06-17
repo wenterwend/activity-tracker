@@ -4,7 +4,8 @@ import { TagBadge } from '../components/TagBadge'
 import { apiFetch } from '../lib/api'
 
 export function TagsPage() {
-  const { tags, loading, refetch } = useTags()
+  const { tags: allTags, loading, refetch } = useTags()
+  const tags = allTags.filter(t => t.type !== 'shared')
   const [name, setName] = useState('')
   const [createError, setCreateError] = useState(null)
   const [creating, setCreating] = useState(false)

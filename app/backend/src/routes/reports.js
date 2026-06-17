@@ -20,7 +20,8 @@ router.get('/', async (req, res) => {
     .from('entries')
     .select(`
       id, task_name, date, time_spent_minutes, notes, created_at,
-      entry_tags ( tag_id, tags ( id, name ) )
+      entry_tags ( tag_id, tags ( id, name ) ),
+      entry_shared_tags ( shared_tag_id, shared_tags ( id, name ) )
     `)
     .eq('user_id', req.user.id)
     .gte('date', start)
@@ -30,19 +31,20 @@ router.get('/', async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message })
 
-  let results = data.map(({ entry_tags, ...entry }) => ({
+  let results = data.map(({ entry_tags, entry_shared_tags, ...entry }) => ({
     ...entry,
-    tags: entry_tags.map(et => et.tags),
+    tags: [
+      ...entry_tags.map(et => ({ ...et.tags, type: 'personal' })),
+      ...(entry_shared_tags || []).map(est => ({ ...est.shared_tags, type: 'shared' })),
+    ],
   }))
 
-  // AND include filter: entry must have ALL requested tags
   if (includeFilter.length > 0) {
     results = results.filter(entry =>
       includeFilter.every(tid => entry.tags.some(t => t.id === tid))
     )
   }
 
-  // NOT exclude filter: entry must not have ANY of the excluded tags
   if (excludeFilter.length > 0) {
     results = results.filter(entry =>
       !excludeFilter.some(tid => entry.tags.some(t => t.id === tid))

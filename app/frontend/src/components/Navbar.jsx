@@ -36,6 +36,7 @@ export function Navbar() {
           <NavLink to="/dashboard" className={desktopLinkClass}>Dashboard</NavLink>
           <NavLink to="/reports" className={desktopLinkClass}>Reports</NavLink>
           <NavLink to="/tags" className={desktopLinkClass}>Tags</NavLink>
+          <NavLink to="/settings" className={desktopLinkClass}>Settings</NavLink>
           <span className="text-gray-400 text-sm">{truncateEmail(user?.email)}</span>
           <button
             onClick={handleLogout}
@@ -81,6 +82,13 @@ export function Navbar() {
             className="py-2.5 text-gray-700 font-medium min-h-[44px] flex items-center"
           >
             Tags
+          </Link>
+          <Link
+            to="/settings"
+            onClick={() => setMobileOpen(false)}
+            className="py-2.5 text-gray-700 font-medium min-h-[44px] flex items-center"
+          >
+            Settings
           </Link>
           <p className="text-gray-400 text-xs pt-1 pb-1">{user?.email}</p>
           <button

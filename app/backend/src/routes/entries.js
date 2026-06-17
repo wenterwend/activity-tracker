@@ -10,14 +10,19 @@ const ENTRY_SELECT = `
   entry_tags (
     tag_id,
     tags ( id, name )
+  ),
+  entry_shared_tags (
+    shared_tag_id,
+    shared_tags ( id, name )
   )
 `
 
-function normalizeEntry({ entry_tags, ...entry }) {
-  return { ...entry, tags: entry_tags.map(et => et.tags) }
+function normalizeEntry({ entry_tags, entry_shared_tags, ...entry }) {
+  const personal = entry_tags.map(et => ({ ...et.tags, type: 'personal' }))
+  const shared = (entry_shared_tags || []).map(est => ({ ...est.shared_tags, type: 'shared' }))
+  return { ...entry, tags: [...personal, ...shared] }
 }
 
-// GET /entries — all entries for the current user with tags, date DESC then created_at DESC
 router.get('/', async (req, res) => {
   const { data, error } = await req.supabase
     .from('entries')
@@ -30,7 +35,6 @@ router.get('/', async (req, res) => {
   res.json(data.map(normalizeEntry))
 })
 
-// GET /entries/:id — single entry with tags (used by edit form)
 router.get('/:id', async (req, res) => {
   const { data, error } = await req.supabase
     .from('entries')
@@ -44,9 +48,8 @@ router.get('/:id', async (req, res) => {
   res.json(normalizeEntry(data))
 })
 
-// POST /entries
 router.post('/', async (req, res) => {
-  const { task_name, date, time_spent_minutes, notes, tag_ids = [] } = req.body
+  const { task_name, date, time_spent_minutes, notes, tag_ids = [], shared_tag_ids = [] } = req.body
 
   if (!task_name?.trim()) return res.status(400).json({ error: 'task_name is required' })
   if (!date) return res.status(400).json({ error: 'date is required' })
@@ -75,12 +78,18 @@ router.post('/', async (req, res) => {
     if (tagError) return res.status(500).json({ error: tagError.message })
   }
 
+  if (shared_tag_ids.length > 0) {
+    const { error: sharedTagError } = await req.supabase
+      .from('entry_shared_tags')
+      .insert(shared_tag_ids.map(shared_tag_id => ({ entry_id: entry.id, shared_tag_id })))
+    if (sharedTagError) return res.status(500).json({ error: sharedTagError.message })
+  }
+
   res.status(201).json({ ...entry, tags: [] })
 })
 
-// PUT /entries/:id
 router.put('/:id', async (req, res) => {
-  const { task_name, date, time_spent_minutes, notes, tag_ids = [] } = req.body
+  const { task_name, date, time_spent_minutes, notes, tag_ids = [], shared_tag_ids = [] } = req.body
 
   if (!task_name?.trim()) return res.status(400).json({ error: 'task_name is required' })
   if (!date) return res.status(400).json({ error: 'date is required' })
@@ -104,18 +113,25 @@ router.put('/:id', async (req, res) => {
   if (error) return res.status(500).json({ error: error.message })
   if (!entry) return res.status(404).json({ error: 'Not found' })
 
-  // Replace tags atomically: delete all then re-insert
+  // Replace all tags atomically
   await req.supabase.from('entry_tags').delete().eq('entry_id', req.params.id)
+  await req.supabase.from('entry_shared_tags').delete().eq('entry_id', req.params.id)
+
   if (tag_ids.length > 0) {
     await req.supabase
       .from('entry_tags')
       .insert(tag_ids.map(tag_id => ({ entry_id: req.params.id, tag_id })))
   }
 
+  if (shared_tag_ids.length > 0) {
+    await req.supabase
+      .from('entry_shared_tags')
+      .insert(shared_tag_ids.map(shared_tag_id => ({ entry_id: req.params.id, shared_tag_id })))
+  }
+
   res.json({ ...entry, tags: [] })
 })
 
-// DELETE /entries/:id
 router.delete('/:id', async (req, res) => {
   const { error } = await req.supabase
     .from('entries')

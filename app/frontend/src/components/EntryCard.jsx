@@ -59,7 +59,7 @@ export function EntryCard({ entry, onDeleted }) {
       {entry.tags?.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {entry.tags.map(tag => (
-            <TagBadge key={tag.id} name={tag.name} />
+            <TagBadge key={tag.id} name={tag.name} type={tag.type} />
           ))}
         </div>
       )}
