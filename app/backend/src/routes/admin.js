@@ -28,16 +28,20 @@ router.use(requireAdmin)
 // ── Stats ─────────────────────────────────────────────────────────────────────
 
 router.get('/stats', async (req, res) => {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return res.status(503).json({ error: 'SUPABASE_SERVICE_ROLE_KEY is not configured on the server' })
+  }
+
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
     .toISOString().split('T')[0]
 
   const [
-    { data: allProfiles },
-    { data: allEntries },
-    { data: allPersonalTags },
-    { data: allSharedTags },
-    { data: aiRows },
-    { data: recentEntries },
+    profilesResult,
+    entriesResult,
+    personalTagsResult,
+    sharedTagsResult,
+    aiResult,
+    recentEntriesResult,
   ] = await Promise.all([
     serviceClient.from('profiles').select('is_active'),
     serviceClient.from('entries').select('id'),
@@ -46,6 +50,21 @@ router.get('/stats', async (req, res) => {
     serviceClient.from('ai_summaries').select('input_tokens, output_tokens'),
     serviceClient.from('entries').select('date').gte('date', thirtyDaysAgo).order('date'),
   ])
+
+  // Surface the first error encountered so it's visible in the response
+  const firstError = [profilesResult, entriesResult, personalTagsResult, sharedTagsResult, aiResult, recentEntriesResult]
+    .find(r => r.error)
+  if (firstError?.error) {
+    console.error('[Admin stats] Query error:', firstError.error.message)
+    return res.status(500).json({ error: firstError.error.message })
+  }
+
+  const { data: allProfiles }    = profilesResult
+  const { data: allEntries }     = entriesResult
+  const { data: allPersonalTags }= personalTagsResult
+  const { data: allSharedTags }  = sharedTagsResult
+  const { data: aiRows }         = aiResult
+  const { data: recentEntries }  = recentEntriesResult
 
   const totalUsers   = allProfiles?.length ?? 0
   const activeUsers  = allProfiles?.filter(p => p.is_active).length ?? 0
