@@ -55,7 +55,7 @@ export function AdminAuditLog() {
                     {ACTION_LABELS[entry.action] ?? entry.action}
                   </td>
                   <td className="py-2.5 pr-4 text-gray-600">
-                    {entry.profiles?.email ?? <span className="text-gray-400 italic">—</span>}
+                    {entry.email ?? <span className="text-gray-400 italic">—</span>}
                   </td>
                   <td className="py-2.5 text-gray-500 text-xs">
                     {entry.metadata ? JSON.stringify(entry.metadata) : ''}

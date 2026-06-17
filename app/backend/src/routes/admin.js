@@ -32,22 +32,26 @@ router.get('/stats', async (req, res) => {
     .toISOString().split('T')[0]
 
   const [
-    { count: totalUsers },
-    { count: activeUsers },
-    { count: totalEntries },
-    { count: personalTags },
-    { count: sharedTags },
+    { data: allProfiles },
+    { data: allEntries },
+    { data: allPersonalTags },
+    { data: allSharedTags },
     { data: aiRows },
     { data: recentEntries },
   ] = await Promise.all([
-    serviceClient.from('profiles').select('*', { count: 'exact', head: true }),
-    serviceClient.from('profiles').select('*', { count: 'exact', head: true }).eq('is_active', true),
-    serviceClient.from('entries').select('*', { count: 'exact', head: true }),
-    serviceClient.from('tags').select('*', { count: 'exact', head: true }),
-    serviceClient.from('shared_tags').select('*', { count: 'exact', head: true }),
+    serviceClient.from('profiles').select('is_active'),
+    serviceClient.from('entries').select('id'),
+    serviceClient.from('tags').select('id'),
+    serviceClient.from('shared_tags').select('id'),
     serviceClient.from('ai_summaries').select('input_tokens, output_tokens'),
     serviceClient.from('entries').select('date').gte('date', thirtyDaysAgo).order('date'),
   ])
+
+  const totalUsers   = allProfiles?.length ?? 0
+  const activeUsers  = allProfiles?.filter(p => p.is_active).length ?? 0
+  const totalEntries = allEntries?.length ?? 0
+  const personalTags = allPersonalTags?.length ?? 0
+  const sharedTags   = allSharedTags?.length ?? 0
 
   const aiCalls = aiRows?.length ?? 0
   const inputTokens  = aiRows?.reduce((s, r) => s + (r.input_tokens  ?? 0), 0) ?? 0
@@ -92,15 +96,24 @@ router.get('/users', async (req, res) => {
   const { data: profiles, error } = await query
   if (error) return res.status(500).json({ error: error.message })
 
-  const users = await Promise.all(profiles.map(async profile => {
-    const [{ count: entryCount }, { count: tagCount }] = await Promise.all([
-      serviceClient.from('entries').select('*', { count: 'exact', head: true }).eq('user_id', profile.id),
-      serviceClient.from('tags').select('*', { count: 'exact', head: true }).eq('user_id', profile.id),
-    ])
-    return { ...profile, entry_count: entryCount ?? 0, tag_count: tagCount ?? 0 }
-  }))
+  const userIds = profiles.map(p => p.id)
 
-  res.json(users)
+  const [{ data: entryRows }, { data: tagRows }] = await Promise.all([
+    serviceClient.from('entries').select('user_id').in('user_id', userIds),
+    serviceClient.from('tags').select('user_id').in('user_id', userIds),
+  ])
+
+  const entryCounts = {}
+  entryRows?.forEach(r => { entryCounts[r.user_id] = (entryCounts[r.user_id] ?? 0) + 1 })
+
+  const tagCounts = {}
+  tagRows?.forEach(r => { tagCounts[r.user_id] = (tagCounts[r.user_id] ?? 0) + 1 })
+
+  res.json(profiles.map(p => ({
+    ...p,
+    entry_count: entryCounts[p.id] ?? 0,
+    tag_count: tagCounts[p.id] ?? 0,
+  })))
 })
 
 router.put('/users/:id/status', async (req, res) => {
@@ -129,14 +142,26 @@ router.put('/users/:id/status', async (req, res) => {
 
 router.get('/audit-log', async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 100, 500)
-  const { data, error } = await serviceClient
+  const { data: rows, error } = await serviceClient
     .from('audit_log')
-    .select('id, user_id, action, metadata, created_at, profiles(email)')
+    .select('id, user_id, action, metadata, created_at')
     .order('created_at', { ascending: false })
     .limit(limit)
 
   if (error) return res.status(500).json({ error: error.message })
-  res.json(data)
+
+  // Enrich with emails from profiles
+  const userIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))]
+  let emailMap = {}
+  if (userIds.length > 0) {
+    const { data: profiles } = await serviceClient
+      .from('profiles')
+      .select('id, email')
+      .in('id', userIds)
+    profiles?.forEach(p => { emailMap[p.id] = p.email })
+  }
+
+  res.json(rows.map(r => ({ ...r, email: emailMap[r.user_id] ?? null })))
 })
 
 // ── Orphaned tags ─────────────────────────────────────────────────────────────
@@ -194,21 +219,28 @@ router.get('/export', async (req, res) => {
     .select('id, email, is_admin, is_active, last_active_at, created_at')
     .order('created_at', { ascending: false })
 
-  const rows = await Promise.all((profiles ?? []).map(async profile => {
-    const [{ count: entryCount }, { count: tagCount }] = await Promise.all([
-      serviceClient.from('entries').select('*', { count: 'exact', head: true }).eq('user_id', profile.id),
-      serviceClient.from('tags').select('*', { count: 'exact', head: true }).eq('user_id', profile.id),
-    ])
-    return {
-      user_id: profile.id,
-      email: profile.email ?? '',
-      is_admin: profile.is_admin,
-      is_active: profile.is_active,
-      entry_count: entryCount ?? 0,
-      tag_count: tagCount ?? 0,
-      last_active_at: profile.last_active_at ?? '',
-      created_at: profile.created_at,
-    }
+  const exportIds = (profiles ?? []).map(p => p.id)
+
+  const [{ data: exportEntries }, { data: exportTags }] = await Promise.all([
+    serviceClient.from('entries').select('user_id').in('user_id', exportIds),
+    serviceClient.from('tags').select('user_id').in('user_id', exportIds),
+  ])
+
+  const exportEntryCounts = {}
+  exportEntries?.forEach(r => { exportEntryCounts[r.user_id] = (exportEntryCounts[r.user_id] ?? 0) + 1 })
+
+  const exportTagCounts = {}
+  exportTags?.forEach(r => { exportTagCounts[r.user_id] = (exportTagCounts[r.user_id] ?? 0) + 1 })
+
+  const rows = (profiles ?? []).map(profile => ({
+    user_id: profile.id,
+    email: profile.email ?? '',
+    is_admin: profile.is_admin,
+    is_active: profile.is_active,
+    entry_count: exportEntryCounts[profile.id] ?? 0,
+    tag_count: exportTagCounts[profile.id] ?? 0,
+    last_active_at: profile.last_active_at ?? '',
+    created_at: profile.created_at,
   }))
 
   res.json(rows)
